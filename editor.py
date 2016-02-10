@@ -7,7 +7,6 @@ import locale
 import os.path
 import subprocess
 import tempfile
-from distutils.spawn import find_executable
 
 
 __all__ = [
@@ -23,58 +22,19 @@ class EditorError(RuntimeError):
     pass
 
 
-def get_default_editors():
-    # TODO: Make platform-specific
-    return [
-        'editor',
-        'vim',
-        'emacs',
-        'nano',
-    ]
-
-
-def get_editor_args(editor):
-    if editor in ['vim', 'gvim', 'vim.basic', 'vim.tiny']:
-        return '-f -o'
-
-    elif editor == 'emacs':
-        return '-nw'
-
-    elif editor == 'gedit':
-        return '-w --new-window'
-
-    elif editor == 'nano':
-        return '-R'
-
-    else:
-        return ''
-
-
-def get_platform_editor_var():
-    # TODO: Make platform specific
-    return "$EDITOR"
-
-
 def get_editor():
     # Get the editor from the environment.  Prefer VISUAL to EDITOR
     editor = os.environ.get('VISUAL') or os.environ.get('EDITOR')
-    if editor:
-        return editor
-
-    # None found in the environment.  Fallback to platform-specific defaults.
-    for ed in get_default_editors():
-        path = find_executable(ed)
-        if path is not None:
-            return path
-
-    raise EditorError("Unable to find a viable editor on this system."
-        "Please consider setting your %s variable" % get_platform_editor_var())
+    if not editor:
+        raise EditorError(
+            "Unable to find a viable editor on this system."
+            "Please set your $VISUAL and/or $EDITOR environment variable"
+        )
+    return editor
 
 
 def edit(filename=None, contents=None):
     editor = get_editor()
-    args = get_editor_args(os.path.basename(os.path.realpath(editor)))
-    args = [editor] + args.split(' ')
 
     if filename is None:
         tmp = tempfile.NamedTemporaryFile()
@@ -84,9 +44,9 @@ def edit(filename=None, contents=None):
         with open(filename, mode='wb') as f:
             f.write(contents)
 
-    args += [filename]
+    cmd = '%s %s' % (editor, filename)
 
-    proc = subprocess.Popen(args, close_fds=True)
+    proc = subprocess.Popen(cmd, close_fds=True, shell=True)
     proc.communicate()
 
     with open(filename, mode='rb') as f:
